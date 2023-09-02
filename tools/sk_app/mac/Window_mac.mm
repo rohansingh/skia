@@ -55,9 +55,9 @@ bool Window_mac::initWindow() {
     }
 
     // Create Cocoa window
-    constexpr int initialWidth = 1280;
-    constexpr int initialHeight = 960;
-    NSRect windowRect = NSMakeRect(100, 100, initialWidth, initialHeight);
+    constexpr int initialWidth = 64;
+    constexpr int initialHeight = 32;
+    NSRect windowRect = NSMakeRect(64, 32, initialWidth, initialHeight);
 
     NSUInteger windowStyle = (NSTitledWindowMask | NSClosableWindowMask | NSResizableWindowMask |
                               NSMiniaturizableWindowMask);

@@ -51,8 +51,8 @@ bool Window_unix::initWindow(Display* display) {
     }
     fDisplay = display;
 
-    constexpr int initialWidth = 1280;
-    constexpr int initialHeight = 960;
+    constexpr int initialWidth = 64;
+    constexpr int initialHeight = 32;
 
 #ifdef SK_GL
     // Attempt to create a window that supports GL

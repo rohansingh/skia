@@ -1,25 +1,31 @@
 /*
-* Copyright 2017 Google Inc.
-*
-* Use of this source code is governed by a BSD-style license that can be
-* found in the LICENSE file.
-*/
+ * Copyright 2017 Google Inc.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
 
 #include "example/HelloWorld.h"
+#include <iostream>
 
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
+#include "include/core/SkData.h"
+#include "include/core/SkEncodedImageFormat.h"
 #include "include/core/SkFont.h"
 #include "include/core/SkFontTypes.h"
 #include "include/core/SkGraphics.h"
+#include "include/core/SkImage.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkShader.h"
+#include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/core/SkSurface.h"
 #include "include/core/SkTileMode.h"
 #include "include/effects/SkGradientShader.h"
+#include "include/encode/SkPngEncoder.h"
 #include "tools/window/DisplayParams.h"
 
 #include <string.h>
@@ -32,14 +38,18 @@ Application* Application::Create(int argc, char** argv, void* platformData) {
 }
 
 HelloWorld::HelloWorld(int argc, char** argv, void* platformData)
-#if defined(SK_GL)
-        : fBackendType(Window::kNativeGL_BackendType),
+#if defined(SK_GL) && defined(FOOOOOOO)
+        : fBackendType(Window::kNativeGL_BackendType)
+        ,
 #elif defined(SK_VULKAN)
-        : fBackendType(Window::kVulkan_BackendType),
+        : fBackendType(Window::kVulkan_BackendType)
+        ,
 #else
-        : fBackendType(Window::kRaster_BackendType),
+        : fBackendType(Window::kRaster_BackendType)
+        ,
 #endif
-        fRotationAngle(0) {
+        fRotationAngle(0)
+        , saveScreenshot(true) {
     SkGraphics::Init();
 
     fWindow = Window::CreateNativeWindow(platformData);
@@ -88,51 +98,80 @@ void HelloWorld::onBackendCreated() {
 void HelloWorld::onPaint(SkSurface* surface) {
     auto canvas = surface->getCanvas();
 
-    // Clear background
-    canvas->clear(SK_ColorWHITE);
+    for (int i = 0; i < 1; i++) {
+        // Clear background
+        canvas->clear(SK_ColorWHITE);
 
-    SkPaint paint;
-    paint.setColor(SK_ColorRED);
+        SkPaint paint;
+        paint.setColor(SK_ColorRED);
 
-    // Draw a rectangle with red paint
-    SkRect rect = SkRect::MakeXYWH(10, 10, 128, 128);
-    canvas->drawRect(rect, paint);
+        // Draw a rectangle with red paint
+        SkRect rect = SkRect::MakeXYWH(10, 10, 128, 128);
+        canvas->drawRect(rect, paint);
 
-    // Set up a linear gradient and draw a circle
-    {
-        SkPoint linearPoints[] = { { 0, 0 }, { 300, 300 } };
-        SkColor linearColors[] = { SK_ColorGREEN, SK_ColorBLACK };
-        paint.setShader(SkGradientShader::MakeLinear(linearPoints, linearColors, nullptr, 2,
-                                                     SkTileMode::kMirror));
-        paint.setAntiAlias(true);
+        // Set up a linear gradient and draw a circle
+        {
+            SkPoint linearPoints[] = {{0, 0}, {300, 300}};
+            SkColor linearColors[] = {SK_ColorGREEN, SK_ColorBLACK};
+            paint.setShader(SkGradientShader::MakeLinear(
+                    linearPoints, linearColors, nullptr, 2, SkTileMode::kMirror));
+            paint.setAntiAlias(true);
 
-        canvas->drawCircle(200, 200, 64, paint);
+            canvas->drawCircle(200, 200, 64, paint);
 
-        // Detach shader
-        paint.setShader(nullptr);
+            // Detach shader
+            paint.setShader(nullptr);
+        }
+
+        // Draw a message with a nice black paint
+        SkFont font;
+        font.setSubpixel(true);
+        font.setSize(20);
+        paint.setColor(SK_ColorBLACK);
+
+        canvas->save();
+        static char message[250];
+        sprintf(message, "Hello World %d", i);
+
+        // Translate and rotate
+        // canvas->translate(300, 300);
+        fRotationAngle += 0.2f;
+        if (fRotationAngle > 360) {
+            fRotationAngle -= 360;
+        }
+        canvas->rotate(fRotationAngle);
+
+        // Draw the text
+        canvas->drawSimpleText(message, strlen(message), SkTextEncoding::kUTF8, 0, 0, font, paint);
+
+        canvas->restore();
+
+        // save to PNG
+        auto filename = "helloworld-" + std::to_string(i) + ".png";
+
+        if (saveScreenshot) {
+            // save the surface to a PNG file
+            SkPixmap pixmap;
+            surface->peekPixels(&pixmap);
+
+            SkFILEWStream out(filename.c_str());
+            if (!out.isValid()) {
+                std::cerr << "Could not open file for writing.\n";
+                return;
+            }
+
+            // Use default encoding options.
+            SkPngEncoder::Options png_options;
+
+            if (!SkPngEncoder::Encode(&out, pixmap, png_options)) {
+                std::cerr << "PNG encoding failed.\n";
+            }
+        }
     }
+    saveScreenshot = false;
 
-    // Draw a message with a nice black paint
-    SkFont font;
-    font.setSubpixel(true);
-    font.setSize(20);
-    paint.setColor(SK_ColorBLACK);
-
-    canvas->save();
-    static const char message[] = "Hello World ";
-
-    // Translate and rotate
-    canvas->translate(300, 300);
-    fRotationAngle += 0.2f;
-    if (fRotationAngle > 360) {
-        fRotationAngle -= 360;
-    }
-    canvas->rotate(fRotationAngle);
-
-    // Draw the text
-    canvas->drawSimpleText(message, strlen(message), SkTextEncoding::kUTF8, 0, 0, font, paint);
-
-    canvas->restore();
+    // exit the program
+    exit(0);
 }
 
 void HelloWorld::onIdle() {
@@ -156,6 +195,8 @@ bool HelloWorld::onChar(SkUnichar c, skui::ModifierKey modifiers) {
         }
         fWindow->detach();
         fWindow->attach(fBackendType);
+    } else if ('s' == c) {
+        saveScreenshot = true;
     }
     return true;
 }
